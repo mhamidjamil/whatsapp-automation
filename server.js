@@ -1,7 +1,7 @@
 const { Client, LocalAuth } = require('whatsapp-web.js'); // Use LocalAuth for session management
 const qrcode = require('qrcode-terminal');
 const express = require('express');
-const fs = require('fs');
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = 3008;
@@ -33,7 +33,24 @@ client.on('auth_failure', () => {
 // Start the WhatsApp client
 client.initialize();
 
-// API endpoint to send messages
+// Function to trigger a curl command
+const triggerCurlCommand = (channel, number, message) => {
+    const data = `Message to ${number}: ${message}`;
+    const curlCommand = `curl -d "${data}" 192.168.1.238:9999/${channel}`;
+
+    exec(curlCommand, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing curl: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.error(`Curl stderr: ${stderr}`);
+            return;
+        }
+        console.log(`Curl stdout: ${stdout}`);
+    });
+};
+
 app.post('/send', async (req, res) => {
     const { number, message } = req.body;
 
@@ -44,9 +61,17 @@ app.post('/send', async (req, res) => {
     try {
         const chatId = `${number}@c.us`; // Format the chat ID
         await client.sendMessage(chatId, message);
+
+        // On successful message sending, trigger curl to msg_send
+        triggerCurlCommand('msg_send', number, message);
+
         return res.status(200).json({ status: 'Message sent successfully!' });
     } catch (error) {
         console.error('Error sending message:', error);
+
+        // On failure, trigger curl to msg_failed
+        triggerCurlCommand('msg_failed', number, message);
+
         return res.status(500).json({ error: 'Failed to send message' });
     }
 });
