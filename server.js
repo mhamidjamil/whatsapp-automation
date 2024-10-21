@@ -30,6 +30,34 @@ client.on('auth_failure', () => {
     console.error('Authentication failed. Please restart the session.');
 });
 
+// Listen for incoming messages
+client.on('message', async (msg) => {
+    const from = msg.from; // Sender's ID
+    const messageContent = msg.body; // The actual message content
+
+    console.log(`Message received from ${from}: ${messageContent}`);
+
+    // Optional: Respond or process the message
+    if (messageContent.toLowerCase() === 'ping') {
+        await msg.reply('pong');
+    }
+
+    // Trigger curl command to notify your external service
+    const curlCommand = `curl -d "Message from ${from}: ${messageContent}" 192.168.1.238:9999/msg_received`;
+    exec(curlCommand, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing curl: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.error(`Curl stderr: ${stderr}`);
+            return;
+        }
+        console.log(`Curl stdout: ${stdout}`);
+    });
+});
+
+
 // Start the WhatsApp client
 client.initialize();
 
