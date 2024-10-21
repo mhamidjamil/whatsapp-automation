@@ -1,8 +1,10 @@
+require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js'); // Use LocalAuth for session management
 const qrcode = require('qrcode-terminal');
 const express = require('express');
 const { exec } = require('child_process');
 const { handleIncomingMessage } = require('./messageHandler');
+const ntfyServer = process.env.NTFY_SERVER_IP;
 
 const app = express();
 const PORT = 3008;
@@ -41,7 +43,7 @@ client.on('message', async (msg) => {
   console.log(`Message received from ${formatted_sender}: ${messageContent}`);
 
   // Trigger curl command to notify your external service (optional)
-  const curlCommand = `curl -d "Message from ${formatted_sender}: ${messageContent}" 192.168.1.238:9999/msg_received`;
+  const curlCommand = `curl -d "Message from ${formatted_sender}: ${messageContent}" ${ntfyServer}/msg_received`;
   exec(curlCommand, (error, stdout, stderr) => {
     if (error) {
       console.error(`Error executing curl: ${error.message}`);
@@ -64,7 +66,7 @@ client.initialize();
 // Function to trigger a curl command
 const triggerCurlCommand = (channel, number, message) => {
   const data = `Message to ${number}: ${message}`;
-  const curlCommand = `curl -d "${data}" 192.168.1.238:9999/${channel}`;
+  const curlCommand = `curl -d "${data}" ${ntfyServer}/${channel}`;
 
   exec(curlCommand, (error, stdout, stderr) => {
     if (error) {

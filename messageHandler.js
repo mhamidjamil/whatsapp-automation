@@ -1,5 +1,6 @@
 const { exec } = require('child_process');
 const http = require('http'); // Node.js built-in HTTP module
+const TTGO_TCALL_SERVER = process.env.TTGO_TCALL_SERVER;
 
 function handleIncomingMessage(sender, message, client) {
   // Normalize message to lowercase and trim spaces
@@ -12,7 +13,7 @@ function handleIncomingMessage(sender, message, client) {
   } else if (normalizedMessage === 'call me') {
     // Call an external API when the message is "call me"
     let formatted_sender = sender.replace('@c.us', '');
-    const apiCommand = `curl -X POST http://192.168.1.247/data -H "Content-Type: application/json" -d '{"data": "callTo {+${formatted_sender}}"}'`;
+    const apiCommand = `curl -X POST ${TTGO_TCALL_SERVER}/data -H "Content-Type: application/json" -d '{"data": "callTo {+${formatted_sender}}"}'`;
     exec(apiCommand, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error calling API: ${error.message}`);
@@ -23,7 +24,7 @@ function handleIncomingMessage(sender, message, client) {
     client.sendMessage(sender, 'OK, I\'ll call you soon.');
   } else if (normalizedMessage === 'call hamid') {
     // Call another API for "call hamid"
-    const apiCommand = `curl -X POST http://192.168.1.247/data -H "Content-Type: application/json" -d '{"data": "_call"}'`;
+    const apiCommand = `curl -X POST ${TTGO_TCALL_SERVER} -H "Content-Type: application/json" -d '{"data": "_call"}'`;
     exec(apiCommand, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error calling API: ${error.message}`);
@@ -47,7 +48,7 @@ function handleIncomingMessage(sender, message, client) {
 
       // Define options for the HTTP request
       const options = {
-        hostname: '192.168.1.247',
+        hostname: TTGO_TCALL_SERVER.replace('http://', '').split('/')[0],
         port: 80,
         path: '/data',
         method: 'POST',
