@@ -65,6 +65,8 @@ client.on('message', async (msg) => {
 	  return;  // Skip the curl part if the sender is in the ignored list
 	}
 
+	handleIncomingMessage(sender, messageContent, client);
+
 	// Trigger curl command to notify your external service (optional)
 	const curlCommand = `curl -d "Message from ${formatted_sender}: ${messageContent}" ${ntfyServer}/msg_received`;
 	exec(curlCommand, (error, stdout, stderr) => {
