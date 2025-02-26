@@ -5,6 +5,7 @@ const express = require('express');
 const { exec } = require('child_process');
 const { handleIncomingMessage } = require('./messageHandler');
 const ntfyServer = process.env.NTFY_SERVER_IP;
+const fetch = require('node-fetch'); // Ensure fetch is available in Node.js
 // const ntfyServer = '192.168.1.238:9999';
 
 const app = express();
@@ -101,26 +102,54 @@ const triggerCurlCommand = (channel, number, message) => {
 };
 
 app.post('/send', async (req, res) => {
-	const { number, message } = req.body;
+	const { number, message, externalApiUrl, curlCommand } = req.body;
 
-	if (!number || !message) {
-		return res.status(400).json({ error: 'Missing number or message' });
+	if (!number) {
+		return res.status(400).json({ error: 'Missing number' });
+	}
+
+	let finalMessage = message || '';
+
+	// Fetch data from external API if URL is provided
+	if (externalApiUrl) {
+		try {
+			const response = await fetch(externalApiUrl);
+			const data = await response.json();
+			finalMessage += `\n\nFetched Data: ${JSON.stringify(data)}`;
+		} catch (error) {
+			console.error('Error fetching data:', error);
+			return res.status(500).json({ error: 'Failed to fetch data' });
+		}
 	}
 
 	try {
-		const chatId = `${number}@c.us`; // Format the chat ID
-		await client.sendMessage(chatId, message);
+		const chatId = `${number.replace(/\D/g, '')}@c.us`; // Format number properly
 
-		// On successful message sending, trigger curl to msg_send
+		// Verify if the number is registered on WhatsApp
+		const isRegistered = await client.isRegisteredUser(chatId);
+		if (!isRegistered) {
+			return res.status(400).json({ error: 'This number is not registered on WhatsApp.' });
+		}
+
+		// Send the message via WhatsApp
+		await client.sendMessage(chatId, finalMessage);
+		console.log(`Message sent to ${number}: ${finalMessage}`);
+
+		// Execute cURL command if provided
+		if (curlCommand) {
+			exec(curlCommand, (error, stdout, stderr) => {
+				if (error) {
+					console.error(`Error executing cURL command: ${error.message}`);
+				} else {
+					console.log(`cURL Command Output: ${stdout}`);
+				}
+			});
+		}
 		triggerCurlCommand('msg_send', number, message);
-
 		return res.status(200).json({ status: 'Message sent successfully!' });
 	} catch (error) {
-		console.error('Error sending message:', error);
-
-		// On failure, trigger curl to msg_failed
 		triggerCurlCommand('msg_failed', number, message);
-
+		console.error('Error sending message via WhatsApp:', error);
 		return res.status(500).json({ error: 'Failed to send message' });
 	}
 });
