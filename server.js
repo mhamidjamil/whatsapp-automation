@@ -33,6 +33,8 @@ client.on('qr', (qr) => {
 // Log when the client is ready
 client.on('ready', () => {
 	console.log('WhatsApp client is ready!');
+	const senderNumber = '923354888420@c.us'; // Replace with your actual number
+	handleIncomingMessage(senderNumber, 'send ready alert', client);
 });
 
 // Handle authentication errors

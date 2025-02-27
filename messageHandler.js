@@ -86,7 +86,13 @@ function handleIncomingMessage(sender, message, client) {
   } else if (normalizedMessage === 'help') {
     // Respond to 'help' with available commands
     client.sendMessage(sender, 'Available commands:\n1. led on / on led\n2. call me\n3. call hamid\n4. send message to +923XXXXXXXXX, message: Your message here\n5. help');
-  } else {
+  } else if (normalizedMessage == 'send ready alert') { // This is a custom message from the WhatsApp client
+    const timestamp = new Date().toLocaleString(); // Get the current date and time
+
+    const message = `WhatsApp client is ready! ✅\nTime: ${timestamp}`;
+    client.sendMessage(sender, message);
+  }
+  else {
     // Handle any other custom messages here
     client.sendMessage(sender, 'Unable to auto-reply, hamid will contact you soon, (btw hamid\'s contact number is 03354888420)');
   }
