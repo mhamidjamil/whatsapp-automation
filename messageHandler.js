@@ -1,6 +1,21 @@
 const { exec } = require('child_process');
 const http = require('http'); // Node.js built-in HTTP module
 const TTGO_TCALL_SERVER = process.env.TTGO_TCALL_SERVER;
+const fs = require('fs');
+const sentNumbersFile = 'sent_numbers.txt';
+
+function hasNumberBeenNotified(sender) {
+  try {
+    const data = fs.readFileSync(sentNumbersFile, 'utf8');
+    return data.split('\n').includes(sender); // Check if number exists in the file
+  } catch (err) {
+    return false; // If file doesn't exist, assume number is new
+  }
+}
+
+function markNumberAsNotified(sender) {
+  fs.appendFileSync(sentNumbersFile, sender + '\n'); // Add number to the file
+}
 
 function handleIncomingMessage(sender, message, client) {
   // Normalize message to lowercase and trim spaces
@@ -93,8 +108,11 @@ function handleIncomingMessage(sender, message, client) {
     client.sendMessage(sender, message);
   }
   else {
-    // Handle any other custom messages here
-    client.sendMessage(sender, 'Unable to auto-reply, hamid will contact you soon, (btw hamid\'s contact number is 03354888420)');
+    if (!hasNumberBeenNotified(sender)) {
+      const message = 'Unable to auto-reply, Hamid will contact you soon, (btw Hamid\'s contact number is +923354888420)';
+      client.sendMessage(sender, message);
+      markNumberAsNotified(sender); // Save the number to prevent duplicate messages
+    }
   }
 }
 
