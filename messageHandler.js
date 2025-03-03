@@ -98,9 +98,43 @@ function handleIncomingMessage(sender, message, client) {
     } else {
       client.sendMessage(sender, 'Invalid message format. Please use "send message to +923XXXXXXXXX, message: Your message here".');
     }
-  } else if (normalizedMessage === 'help') {
+  } else if (normalizedMessage === 'smb details') {
+    const message = `
+  📂 SMB Share Details 📂
+
+  Here are the details of SMB addresses and access:
+
+  🔹 Share: smbshare2
+    - Path: /mnt/smbshare
+    - User: dev
+    - Access Type: Read Only
+
+  🔹 Share: smbshare
+    - Path: /mnt/smbshare
+    - User: orangepi
+    - Access Type: Read/Write
+
+  🔹 Share: wd_hamid
+    - Path: /mnt/wd/hamid
+    - User: orangepi
+    - Access Type: Read/Write
+
+  🔹 Share: wd
+    - Path: /mnt/wd/public
+    - User: dev
+    - Access Type: Read Only
+
+  🔹 Share: wd_public
+    - Path: /mnt/wd/public
+    - User: orangepi
+    - Access Type: Read/Write`;
+
+    client.sendMessage(sender, message);
+  }
+
+  else if (normalizedMessage === 'help') {
     // Respond to 'help' with available commands
-    client.sendMessage(sender, 'Available commands:\n1. led on / on led\n2. call me\n3. call hamid\n4. send message to +923XXXXXXXXX, message: Your message here\n5. help');
+    client.sendMessage(sender, 'Available commands:\n1. led on / on led\n2. call me\n3. call hamid\n4. send message to +923XXXXXXXXX, message: Your message here\n5. help\n6. smb details');
   } else if (normalizedMessage == 'send ready alert') { // This is a custom message from the WhatsApp client
     const timestamp = new Date().toLocaleString(); // Get the current date and time
 
