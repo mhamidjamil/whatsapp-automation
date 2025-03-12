@@ -14,6 +14,7 @@ const PORT = 3008;
 const ignoredNumbers = [
 	'ptcl',
 	'+status',
+	'3312181218'
 ];
 
 // Middleware to parse JSON bodies
