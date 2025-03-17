@@ -104,6 +104,29 @@ const triggerCurlCommand = (channel, number, message) => {
 	});
 };
 
+function formatPhoneNumber(number) {
+	// Remove all non-digit characters
+	let digits = number.replace(/\D/g, '');
+
+	if (digits.length < 10) {
+		return { error: `Invalid number format: ${number}. The number must contain at least 10 digits.` };
+	}
+
+	// Extract the last 10 digits
+	digits = digits.slice(-10);
+
+	// Ensure the first digit is '3'
+	if (digits[0] !== '3') {
+		return { error: `Invalid number format: ${number}. The first digit of the last 10 digits must be '3'.` };
+	}
+
+	// Prefix with '92' (Pakistan's country code)
+	const formattedNumber = `92${digits}`;
+
+	// Append WhatsApp identifier
+	return { chatId: `${formattedNumber}@c.us` };
+}
+
 app.post('/send', async (req, res) => {
 	const { number, message, externalApiUrl, curlCommand } = req.body;
 
@@ -125,8 +148,13 @@ app.post('/send', async (req, res) => {
 		}
 	}
 
+	const phoneResult = formatPhoneNumber(number);
+	if (phoneResult.error) {
+		return res.status(422).json({ error: phoneResult.error });
+	}
+
 	try {
-		const chatId = `${number.replace(/\D/g, '')}@c.us`; // Format number properly
+		const chatId = phoneResult.chatId;
 
 		// Verify if the number is registered on WhatsApp
 		const isRegistered = await client.isRegisteredUser(chatId);
