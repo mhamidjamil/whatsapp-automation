@@ -10,6 +10,7 @@ const fetch = require('node-fetch'); // Ensure fetch is available in Node.js
 
 const app = express();
 const PORT = 3008;
+const lastMessages = {};
 
 const ignoredNumbers = [
 	'ptcl',
@@ -128,7 +129,7 @@ function formatPhoneNumber(number) {
 }
 
 app.post('/send', async (req, res) => {
-	const { number, message, externalApiUrl, curlCommand } = req.body;
+	const { number, message, externalApiUrl, curlCommand, force_send } = req.body;
 
 	if (!number) {
 		return res.status(400).json({ error: 'Missing number' });
@@ -153,10 +154,15 @@ app.post('/send', async (req, res) => {
 		return res.status(422).json({ error: phoneResult.error });
 	}
 
-	try {
-		const chatId = phoneResult.chatId;
+	const chatId = phoneResult.chatId;
 
-		// Verify if the number is registered on WhatsApp
+	if (lastMessages[chatId] === finalMessage && !force_send) {
+		return res.status(409).json({
+			message: "This message was already sent successfully last time. If you really want to send it again, include 'force_send: true' in the request body."
+		});
+	}
+
+	try {
 		const isRegistered = await client.isRegisteredUser(chatId);
 		if (!isRegistered) {
 			return res.status(400).json({ error: 'This number is not registered on WhatsApp.' });
@@ -166,7 +172,8 @@ app.post('/send', async (req, res) => {
 		await client.sendMessage(chatId, finalMessage);
 		console.log(`Message sent to ${number}: ${finalMessage}`);
 
-		// Execute cURL command if provided
+		lastMessages[chatId] = finalMessage;
+
 		if (curlCommand) {
 			exec(curlCommand, (error, stdout, stderr) => {
 				if (error) {
