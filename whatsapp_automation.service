@@ -1,0 +1,36 @@
+# sudo nano /etc/systemd/system/whatsapp_automation.service
+
+[Unit]
+# Description of the service
+Description=WhatsApp Automation
+
+# Ensure the network is online before starting
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Path to Node.js script
+ExecStart=/home/orangepi/.asdf/shims/node /home/orangepi/Desktop/projects/automation/whatsapp-bot/server.js
+
+# Restart service on failure, wait 5 seconds before restarting
+Restart=on-failure
+RestartSec=5
+
+# Run as user "orangepi"
+User=orangepi
+
+# Set working directory
+WorkingDirectory=/home/orangepi/Desktop/projects/automation/whatsapp-bot/
+
+# Set environment variables
+Environment=PATH=/home/orangepi/.asdf/shims:/usr/bin:/usr/local/bin
+Environment=NODE_ENV=development
+
+# Gracefully stop process using SIGTERM
+KillMode=mixed
+TimeoutStopSec=5
+ExecStop=/bin/kill -SIGTERM $MAINPID
+
+[Install]
+# Start service at boot
+WantedBy=multi-user.target
