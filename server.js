@@ -153,6 +153,7 @@ app.post('/send', async (req, res) => {
 	}
 
 	if (!isReadableMessage(message)) {
+		triggerCurlCommand('msg_failed', number, message + '\n#(reason unreadable content)');
 		return res.status(422).json({ error: 'Message contains unreadable content.' });
 	}
 
@@ -172,12 +173,14 @@ app.post('/send', async (req, res) => {
 
 	const phoneResult = formatPhoneNumber(number);
 	if (phoneResult.error) {
+		triggerCurlCommand('msg_failed', number, message + '\n#(reason invalid number)');
 		return res.status(422).json({ error: phoneResult.error });
 	}
 
 	const chatId = phoneResult.chatId;
 
 	if (lastMessages[chatId] === finalMessage && !force_send) {
+		triggerCurlCommand('msg_failed', number, message + '\n#(reason duplicate)');
 		return res.status(409).json({
 			message: "This message was already sent successfully last time. If you really want to send it again, include 'force_send: true' in the request body."
 		});
@@ -207,7 +210,7 @@ app.post('/send', async (req, res) => {
 		triggerCurlCommand('msg_send', number, message);
 		return res.status(200).json({ status: 'Message sent successfully!' });
 	} catch (error) {
-		triggerCurlCommand('msg_failed', number, message);
+		triggerCurlCommand('msg_failed', number, message + '\n#(reason internal error)');
 		console.error('Error sending message via WhatsApp:', error);
 		return res.status(500).json({ error: 'Failed to send message' });
 	}
