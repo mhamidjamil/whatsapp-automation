@@ -128,11 +128,32 @@ function formatPhoneNumber(number) {
 	return { chatId: `${formattedNumber}@c.us` };
 }
 
+function isReadableMessage(message) {
+	const regex = /\[(.*?)\]/; // Extract content inside square brackets
+	const match = message.match(regex);
+
+	if (!match) return true; // No brackets found, assume it's readable
+
+	const content = match[1].trim();
+
+	// Check if content is mostly hex-like characters
+	const hexLike = /^[0-9A-Fa-f\s]+$/;
+	if (hexLike.test(content) && content.replace(/\s/g, "").length > 10) {
+		return false; // Looks like encoded/hex data
+	}
+
+	return true;
+}
+
 app.post('/send', async (req, res) => {
 	const { number, message, externalApiUrl, curlCommand, force_send } = req.body;
 
 	if (!number) {
-		return res.status(400).json({ error: 'Missing number' });
+		return res.status(422).json({ error: 'Missing number' });
+	}
+
+	if (!isReadableMessage(message)) {
+		return res.status(422).json({ error: 'Message contains unreadable content.' });
 	}
 
 	let finalMessage = message || '';
