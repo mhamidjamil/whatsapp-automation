@@ -10,10 +10,12 @@ const fetch = require('node-fetch'); // Ensure fetch is available in Node.js
 
 const app = express();
 const PORT = 3008;
+const lastMessages = {};
 
 const ignoredNumbers = [
 	'ptcl',
 	'+status',
+	'3312181218'
 ];
 
 // Middleware to parse JSON bodies
@@ -103,11 +105,56 @@ const triggerCurlCommand = (channel, number, message) => {
 	});
 };
 
+function formatPhoneNumber(number) {
+	// Remove all non-digit characters
+	let digits = number.replace(/\D/g, '');
+
+	if (digits.length < 10) {
+		return { error: `Invalid number format: ${number}. The number must contain at least 10 digits.` };
+	}
+
+	// Extract the last 10 digits
+	digits = digits.slice(-10);
+
+	// Ensure the first digit is '3'
+	if (digits[0] !== '3') {
+		return { error: `Invalid number format: ${number}. The first digit of the last 10 digits must be '3'.` };
+	}
+
+	// Prefix with '92' (Pakistan's country code)
+	const formattedNumber = `92${digits}`;
+
+	// Append WhatsApp identifier
+	return { chatId: `${formattedNumber}@c.us` };
+}
+
+function isReadableMessage(message) {
+	const regex = /\[(.*?)\]/; // Extract content inside square brackets
+	const match = message.match(regex);
+
+	if (!match) return true; // No brackets found, assume it's readable
+
+	const content = match[1].trim();
+
+	// Check if content is mostly hex-like characters
+	const hexLike = /^[0-9A-Fa-f\s]+$/;
+	if (hexLike.test(content) && content.replace(/\s/g, "").length > 10) {
+		return false; // Looks like encoded/hex data
+	}
+
+	return true;
+}
+
 app.post('/send', async (req, res) => {
-	const { number, message, externalApiUrl, curlCommand } = req.body;
+	const { number, message, externalApiUrl, curlCommand, force_send } = req.body;
 
 	if (!number) {
-		return res.status(400).json({ error: 'Missing number' });
+		return res.status(422).json({ error: 'Missing number' });
+	}
+
+	if (!isReadableMessage(message)) {
+		triggerCurlCommand('msg_failed', number, message + '\n#(reason unreadable content)');
+		return res.status(422).json({ error: 'Message contains unreadable content.' });
 	}
 
 	let finalMessage = message || '';
@@ -124,10 +171,22 @@ app.post('/send', async (req, res) => {
 		}
 	}
 
-	try {
-		const chatId = `${number.replace(/\D/g, '')}@c.us`; // Format number properly
+	const phoneResult = formatPhoneNumber(number);
+	if (phoneResult.error) {
+		triggerCurlCommand('msg_failed', number, message + '\n#(reason invalid number)');
+		return res.status(422).json({ error: phoneResult.error });
+	}
 
-		// Verify if the number is registered on WhatsApp
+	const chatId = phoneResult.chatId;
+
+	if (lastMessages[chatId] === finalMessage && !force_send) {
+		triggerCurlCommand('msg_failed', number, message + '\n#(reason duplicate)');
+		return res.status(409).json({
+			message: "This message was already sent successfully last time. If you really want to send it again, include 'force_send: true' in the request body."
+		});
+	}
+
+	try {
 		const isRegistered = await client.isRegisteredUser(chatId);
 		if (!isRegistered) {
 			return res.status(400).json({ error: 'This number is not registered on WhatsApp.' });
@@ -137,7 +196,8 @@ app.post('/send', async (req, res) => {
 		await client.sendMessage(chatId, finalMessage);
 		console.log(`Message sent to ${number}: ${finalMessage}`);
 
-		// Execute cURL command if provided
+		lastMessages[chatId] = finalMessage;
+
 		if (curlCommand) {
 			exec(curlCommand, (error, stdout, stderr) => {
 				if (error) {
@@ -150,13 +210,13 @@ app.post('/send', async (req, res) => {
 		triggerCurlCommand('msg_send', number, message);
 		return res.status(200).json({ status: 'Message sent successfully!' });
 	} catch (error) {
-		triggerCurlCommand('msg_failed', number, message);
+		triggerCurlCommand('msg_failed', number, message + '\n#(reason internal error)');
 		console.error('Error sending message via WhatsApp:', error);
 		return res.status(500).json({ error: 'Failed to send message' });
 	}
 });
 
 // Start the Express server
-app.listen(PORT, () => {
-	console.log(`Server is running on http://localhost:${PORT}`);
+app.listen(PORT,'0.0.0.0',() => {
+	console.log(`Server is running on http://0.0.0.0:${PORT}`);
 });
